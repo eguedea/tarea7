@@ -57,12 +57,25 @@
 SemaphoreHandle_t led_change_semaphore;
 SemaphoreHandle_t led_counting_semaphore;
 
+void PORTA_IRQHandler()
+{
+	BaseType_t xHigherPriorityTaskWoken;
+	PORT_ClearPinsInterruptFlags(PORTA, 1<<4);
+	xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR( led_change_semaphore, &xHigherPriorityTaskWoken );
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
 
+void PORTC_IRQHandler()
+{
+
+}
 void led_change(void *arg)
 {
 	for(;;)
 	{
-
+		xSemaphoreTake(led_change_semaphore,portMAX_DELAY);
+		GPIO_TogglePinsOutput(GPIOB,1<<21);
 	}
 }
 
