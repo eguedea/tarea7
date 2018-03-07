@@ -49,7 +49,7 @@
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
-
+#define TAKELIMIT 10
 /*
  * @brief   Application entry point.
  */
@@ -68,7 +68,11 @@ void PORTA_IRQHandler()
 
 void PORTC_IRQHandler()
 {
-
+	BaseType_t xHigherPriorityTaskWoken;
+	PORT_ClearPinsInterruptFlags(PORTC, 1<<6);
+	xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR( led_counting_semaphore, &xHigherPriorityTaskWoken );
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 void led_change(void *arg)
 {
@@ -81,9 +85,14 @@ void led_change(void *arg)
 
 void led_change_counting(void *arg)
 {
+	uint8_t takecontrol = 0;
 	for(;;)
 	{
-
+		GPIO_TogglePinsOutput(GPIOE,1<<26);
+		for(takecontrol = 0;takecontrol < TAKELIMIT; takecontrol++)
+		{
+			xSemaphoreTake(led_counting_semaphore,portMAX_DELAY);
+		}
 	}
 }
 int main(void) {
@@ -135,11 +144,11 @@ int main(void) {
 	NVIC_EnableIRQ(PORTA_IRQn);
 	NVIC_EnableIRQ(PORTC_IRQn);
 
-	NVIC_SetPriority(PORTA_IRQn,5);
+	NVIC_SetPriority(PORTA_IRQn,9);
 	NVIC_SetPriority(PORTC_IRQn,5);
 
 	led_change_semaphore = xSemaphoreCreateBinary();
-	led_counting_semaphore = xSemaphoreCreateCounting(10,0);
+	led_counting_semaphore = xSemaphoreCreateCounting(TAKELIMIT,0);
 
 	xTaskCreate(led_change, "LED change", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-1, NULL);
 	xTaskCreate(led_change_counting, "LED counting", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-1, NULL);
